@@ -28,6 +28,7 @@
         </div>
         <div id="stats" class="flex gap-6 text-sm font-mono">
             <div>Alerts: <span id="alert-count" class="text-red-400">0</span></div>
+            <div>Map: <span id="tile-provider" class="text-zinc-400">loading…</span></div>
             <div>Status: <span id="connection-status" class="text-green-400">Connected</span></div>
         </div>
     </nav>
@@ -67,11 +68,48 @@
         // 1. Initialize Map (Centered on UTD Campus)
         const map = L.map('map').setView([32.985, -96.750], 14);
 
-        // 2. OpenStreetMap tiles (free, no API key required)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 19
-        }).addTo(map);
+        // 2. Tile providers with automatic fallback.
+        // Some networks (campus Wi-Fi, filters, shields) block certain tile domains,
+        // so we try providers in order until one loads.
+        const TILE_PROVIDERS = [
+            {
+                name: 'OpenStreetMap',
+                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                options: { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }
+            },
+            {
+                name: 'CARTO',
+                url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+                options: { attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 20 }
+            },
+            {
+                name: 'Esri',
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+                options: { attribution: 'Tiles &copy; Esri', maxZoom: 19 }
+            }
+        ];
+
+        let providerIndex = 0;
+        let tileLayer = null;
+        let tileErrors = 0;
+
+        function installTileLayer() {
+            const p = TILE_PROVIDERS[providerIndex];
+            if (tileLayer) map.removeLayer(tileLayer);
+            tileErrors = 0;
+            tileLayer = L.tileLayer(p.url, p.options);
+            tileLayer.on('tileerror', () => {
+                tileErrors++;
+                if (tileErrors >= 5 && providerIndex < TILE_PROVIDERS.length - 1) {
+                    providerIndex++;
+                    console.warn('Tiles blocked — switching provider to:', TILE_PROVIDERS[providerIndex].name);
+                    installTileLayer();
+                }
+            });
+            tileLayer.addTo(map);
+            document.getElementById('tile-provider').innerText = p.name;
+        }
+        installTileLayer();
 
         const markers = [];
         const API_URL = 'http://localhost:8000/api/alerts';

@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
+from pathlib import Path
+from fastapi.responses import FileResponse
 
 app = FastAPI(title="SignalFlare Backend")
 
@@ -23,8 +25,15 @@ class Alert(BaseModel):
 # Temporary In-Memory Database for the MVP
 active_alerts = []
 
-@app.get("/")
-async def root():
+BASE_DIR = Path(__file__).resolve().parent
+
+@app.get("/", include_in_schema=False)
+async def serve_frontend():
+    """Serves the map directly from the API — one origin, no CORS or file:// issues."""
+    return FileResponse(BASE_DIR / "index.html")
+
+@app.get("/health")
+async def health():
     return {"message": "SignalFlare API is running. Use /api/alerts to see data."}
 
 @app.post("/api/alert")
