@@ -14,6 +14,8 @@
     <style>
         #map { height: calc(100vh - 64px); }
         .leaflet-container { background: #1a1a1a; }
+        /* Dark-mode trick: invert OSM tiles so we get a dark theme with no API key */
+        .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
     </style>
 </head>
 <body class="bg-zinc-900 text-white overflow-hidden">
@@ -65,9 +67,10 @@
         // 1. Initialize Map (Centered on UTD Campus)
         const map = L.map('map').setView([32.985, -96.750], 14);
 
-        // 2. Use a dark-themed tile layer to match the "Command Center" vibe
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
+        // 2. OpenStreetMap tiles (free, no API key required)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19
         }).addTo(map);
 
         const markers = [];
