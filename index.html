@@ -37,6 +37,17 @@
     <main class="relative">
         <div id="map"></div>
 
+        <!-- SMS Triage Simulator (Phase 2): type a messy SOS, the AI turns it into a pin -->
+        <div class="absolute top-4 left-4 z-[1000] bg-zinc-800/90 backdrop-blur-md border border-zinc-700 p-4 rounded-xl shadow-2xl w-80">
+            <h2 class="text-xs font-semibold text-zinc-400 uppercase mb-2">Simulate an SMS SOS</h2>
+            <textarea id="sms-input" rows="2" class="w-full bg-zinc-900 border border-zinc-600 rounded-lg p-2 text-sm placeholder-zinc-500 focus:outline-none focus:border-red-500" placeholder="e.g., Roof collapsed at 123 Main St, my dad needs insulin!"></textarea>
+            <div class="flex gap-2 mt-2">
+                <button id="send-sms" class="flex-1 bg-red-600 hover:bg-red-500 text-white text-sm font-semibold py-2 rounded-lg transition">Send SOS</button>
+                <button id="example-sms" class="bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-sm py-2 px-3 rounded-lg transition">Example</button>
+            </div>
+            <p id="sms-status" class="text-xs mt-2 text-zinc-400"></p>
+        </div>
+
         <!-- Overlay Info Card -->
         <div class="absolute top-4 right-4 z-[1000] bg-zinc-800/90 backdrop-blur-md border border-zinc-700 p-4 rounded-xl shadow-2xl w-64 pointer-events-none">
             <h2 class="text-xs font-semibold text-zinc-400 uppercase mb-2">Triage Legend</h2>
@@ -122,8 +133,11 @@
             return 'green';
         }
 
-        // 4. Function to create a colored circle marker
-        function createCustomMarker(lat, lon, color, type) {
+        // 4. Function to create a colored circle marker (popup shows AI summary + source)
+        function createCustomMarker(lat, lon, color, alert) {
+            const label = alert.urgency >= 8 ? 'CRITICAL' : alert.urgency >= 5 ? 'URGENT' : alert.urgency >= 2 ? 'STABLE' : 'SAFE';
+            const source = alert.source === 'TEXT' ? '📱 SMS' : '🔘 Beacon';
+            const summary = alert.summary ? `<br><span style="opacity:.75">${alert.summary}</span>` : '';
             return L.circleMarker([lat, lon], {
                 radius: 8,
                 fillColor: color,
@@ -131,7 +145,7 @@
                 weight: 1,
                 opacity: 1,
                 fillOpacity: 0.8
-            }).bindPopup(`<b>${type} Alert</b><br>Urgency: ${color === 'red' ? 'High' : 'Medium'}`);
+            }).bindPopup(`<b>${alert.type} Alert</b> <span style="opacity:.6">${source}</span><br>Urgency: ${alert.urgency}/10 — ${label}${summary}`);
         }
 
         // 5. The Polling Loop: Fetch alerts from Backend every 2 seconds
@@ -151,7 +165,7 @@
                 // Add new markers based on data
                 data.forEach(alert => {
                     const color = getMarkerColor(alert.urgency);
-                    const marker = createCustomMarker(alert.lat, alert.lon, color, alert.type);
+                    const marker = createCustomMarker(alert.lat, alert.lon, color, alert);
                     marker.addTo(map);
                     markers.push(marker);
                 });
@@ -162,6 +176,53 @@
                 document.getElementById('connection-status').className = 'text-red-400';
             }
         }
+
+        // 6. SMS Triage Simulator: send a messy text through the AI pipeline
+        const EXAMPLES = [
+            "Tree fell on my roof at 1100 Campbell Rd, my dad is bleeding badly, need an ambulance!!",
+            "Water is rising fast in my attic on Sherwood Dr, 3 of us trapped, please hurry",
+            "We are okay but completely out of water and baby formula, 2200 Waterview Pkwy",
+            "Everyone is safe here, house barely damaged, just no power",
+        ];
+        let exampleIndex = 0;
+
+        async function submitTextAlert() {
+            const input = document.getElementById('sms-input');
+            const status = document.getElementById('sms-status');
+            const text = input.value.trim();
+            if (!text) { status.textContent = 'Type a message first.'; status.className = 'text-xs mt-2 text-zinc-400'; return; }
+
+            status.textContent = 'AI triaging…';
+            status.className = 'text-xs mt-2 text-yellow-400';
+            try {
+                const res = await fetch('http://localhost:8000/api/text-alert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || 'Backend error');
+                }
+                const alert = await res.json();
+                status.textContent = `✅ Parsed as ${alert.type} (urgency ${alert.urgency}) — pin incoming`;
+                status.className = 'text-xs mt-2 text-green-400';
+                input.value = '';
+                fetchAlerts(); // refresh the map immediately
+            } catch (e) {
+                status.textContent = `❌ ${e.message}`;
+                status.className = 'text-xs mt-2 text-red-400';
+            }
+        }
+
+        document.getElementById('send-sms').addEventListener('click', submitTextAlert);
+        document.getElementById('sms-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitTextAlert(); }
+        });
+        document.getElementById('example-sms').addEventListener('click', () => {
+            document.getElementById('sms-input').value = EXAMPLES[exampleIndex % EXAMPLES.length];
+            exampleIndex++;
+        });
 
         // Start the loop
         setInterval(fetchAlerts, 2000);
