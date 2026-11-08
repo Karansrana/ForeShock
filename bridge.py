@@ -33,7 +33,7 @@ CAMPUS_CENTER = (32.985, -96.750)    # fallback GPS if the Arduino doesn't send 
 # Default urgency per alert type (used when the Arduino payload has no urgency field)
 DEFAULT_URGENCY = {
     "MEDICAL": 10,
-    "TRAPPED": 8,
+    "TRAPPED": 7,
     "SUPPLIES": 4,
     "SAFE": 0,
 }
