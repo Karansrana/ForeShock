@@ -78,23 +78,24 @@
         .map-legend {
             position: absolute;
             z-index: 900;
-            left: 7.5%;
-            right: 7.5%;
-            bottom: 32px;
-            min-height: 112px;
-            padding: 22px 28px;
+            left: 50%;
+            width: min(880px, calc(100% - 32px));
+            bottom: 22px;
+            min-height: 76px;
+            padding: 14px 22px;
             border: 1px solid rgba(255,255,255,.9);
-            border-radius: 34px;
+            border-radius: 26px;
             background: rgba(255,255,255,.97);
-            box-shadow: 0 18px 36px rgba(24, 24, 27, .17);
+            box-shadow: 0 12px 26px rgba(24, 24, 27, .14);
             color: #19202f;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 24px;
+            justify-content: center;
+            gap: clamp(24px, 5vw, 64px);
             pointer-events: none;
+            transform: translateX(-50%);
         }
-        .legend-categories { display: flex; align-items: center; justify-content: space-between; gap: clamp(14px, 3.2vw, 46px); }
+        .legend-categories { display: flex; align-items: center; justify-content: space-between; gap: clamp(14px, 3.2vw, 38px); }
         .legend-item { display: flex; align-items: center; gap: 10px; color: #9299a8; font-size: 10px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; }
         .legend-item:first-child { color: #222938; }
         .legend-icon { width: 15px; height: 15px; display: inline-flex; align-items: center; justify-content: center; }
@@ -107,9 +108,6 @@
         .impact-title { margin-bottom: 10px; color: #c4c9d2; font-size: 10px; font-weight: 900; letter-spacing: 1px; text-align: center; }
         .impact-gradient { height: 10px; border-radius: 999px; background: linear-gradient(90deg, #f3e7df, #ff9b53, #f0440a, #df1e24); }
         .impact-labels { display: flex; justify-content: space-between; margin-top: 9px; color: #c5cad3; font-size: 8px; font-weight: 900; text-transform: uppercase; }
-        .legend-sponsor { min-width: 150px; padding-left: 26px; border-left: 1px solid #f0f1f3; text-align: center; }
-        .legend-sponsor strong { display: block; color: #f0440a; font-size: 9px; font-weight: 900; letter-spacing: .6px; }
-        .legend-sponsor span { display: block; margin-top: 3px; color: #151927; font-size: 10px; font-weight: 900; }
         .site-footer {
             height: 34px;
             padding: 0 34px;
@@ -129,9 +127,8 @@
             .brand-lockup { gap: 18px; }
             .header-right { gap: 18px; }
             .header-stats { gap: 16px; }
-            .map-legend { left: 4%; right: 4%; padding: 18px 22px; gap: 16px; }
+            .map-legend { padding: 14px 18px; gap: 24px; }
             .legend-categories { gap: 16px; }
-            .legend-sponsor { min-width: 120px; padding-left: 16px; }
         }
         @media (max-width: 640px) {
             #map { height: calc(100vh - 108px); }
@@ -147,11 +144,11 @@
             .header-stat:nth-child(2) { display: none; }
             .header-stat:nth-child(3) { display: none; }
             .site-header #sms-menu > summary { min-width: 0; padding: 13px 12px; font-size: 9px; }
-            .map-legend { left: 12px; right: 12px; bottom: 14px; min-height: 0; padding: 15px 12px; border-radius: 22px; gap: 12px; }
+            .map-legend { left: 12px; right: 12px; width: auto; bottom: 14px; min-height: 0; padding: 12px 10px; border-radius: 20px; gap: 12px; transform: none; }
             .legend-categories { flex: 1; flex-wrap: wrap; justify-content: center; gap: 12px 16px; }
             .legend-item { gap: 6px; font-size: 8px; letter-spacing: .6px; }
             .legend-icon { width: 13px; height: 13px; }
-            .impact-scale, .legend-sponsor { display: none; }
+            .impact-scale { display: none; }
             .site-footer { height: 36px; padding: 0 12px; font-size: 7px; letter-spacing: .8px; }
             .site-footer span:nth-child(2) { display: none; }
         }
@@ -234,7 +231,6 @@
                 <div class="impact-gradient"></div>
                 <div class="impact-labels"><span>LOW</span><span>MEDIUM</span><span>HIGH</span></div>
             </div>
-            <div class="legend-sponsor"><strong>HACKUTD '26</strong><span>INGOUDE COMPANY</span></div>
         </div>
     </main>
 
