@@ -237,17 +237,6 @@
                 image.data[colorOffset + 3] = Math.round(255 * 0.76 * (1 - Math.exp(-totalInfluence * 1.1)));
             }
             coverageContext.putImageData(image, left, top);
-            coverageContext.save();
-            coverageContext.strokeStyle = 'rgba(255, 235, 235, 0.72)';
-            coverageContext.lineWidth = 1.25;
-            coverageContext.shadowColor = 'rgba(255, 245, 245, 0.35)';
-            coverageContext.shadowBlur = 2 * COVERAGE_SCALE;
-            zones.forEach(zone => {
-                coverageContext.beginPath();
-                coverageContext.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
-                coverageContext.stroke();
-            });
-            coverageContext.restore();
         }
 
         map.on('moveend zoomend resize', () => renderCoverage(currentAlerts));
