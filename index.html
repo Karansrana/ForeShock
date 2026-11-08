@@ -469,7 +469,14 @@
             const summary = escapeHtml(alert.summary || 'No summary provided.');
             const reportedAt = alert.created_at ? new Date(alert.created_at) : null;
             const formattedTime = reportedAt && Number.isFinite(reportedAt.getTime())
-                ? reportedAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZoneName: 'short' })
+                ? reportedAt.toLocaleString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    timeZoneName: 'short'
+                })
                 : 'Time unavailable';
             const safeReportedAt = escapeHtml(formattedTime);
             const quickView = `<b>${type} Alert</b> <span style="opacity:.7">${safeSource}</span><br>Urgency: ${urgency}/10 — ${safeLabel}<br>Reported: ${safeReportedAt}<br><span style="opacity:.8">${summary}</span>`;
