@@ -1,5 +1,5 @@
 """
-SignalFlare Hardware Bridge
+ForeShock Hardware Bridge
 Listens to the Arduino over USB (serial) and forwards every SOS payload
 to the FastAPI backend as an HTTP POST.
 

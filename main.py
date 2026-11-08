@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse
 # Loads GROQ_API_KEY from .env (that file is gitignored — never commit secrets)
 load_dotenv()
 
-app = FastAPI(title="SignalFlare Backend")
+app = FastAPI(title="ForeShock Backend")
 
 # CORS Middleware: Allows the frontend HTML file to talk to this API
 app.add_middleware(
@@ -47,7 +47,7 @@ async def serve_frontend():
 
 @app.get("/health")
 async def health():
-    return {"message": "SignalFlare API is running. Use /api/alerts to see data."}
+    return {"message": "ForeShock API is running. Use /api/alerts to see data."}
 
 @app.post("/api/alert")
 async def receive_alert(alert: Alert):
@@ -74,7 +74,7 @@ GROQ_MODELS = [
 ]
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
-TRIAGE_PROMPT = """You are the triage parser for SignalFlare, a disaster response system.
+TRIAGE_PROMPT = """You are the triage parser for ForeShock, a disaster response system.
 Extract structured data from a panicked, messy emergency message.
 
 Return JSON with exactly these fields:
@@ -94,7 +94,7 @@ def geocode(location: str):
         r = requests.get(
             "https://nominatim.openstreetmap.org/search",
             params={"q": location, "format": "json", "limit": 1},
-            headers={"User-Agent": "SignalFlare-Hackathon/1.0"},
+            headers={"User-Agent": "ForeShock-Hackathon/1.0"},
             timeout=5,
         )
         results = r.json()

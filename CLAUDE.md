@@ -1,4 +1,4 @@
-# SignalFlare: Intelligent Offline Disaster Triage
+# ForeShock: Intelligent Offline Disaster Triage
 
 **Goal:** Solve the "overlooked" problem in large-scale disasters by bridging offline hardware (Arduino) and AI-powered software to create a real-time triage map for first responders.
 
