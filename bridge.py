@@ -131,6 +131,8 @@ def run_serial(port_name: str):
             if alert:
                 print(f"[ARDUINO] {raw.strip()}")
                 send_alert(alert)
+            elif raw.strip():
+                print(f"[ARDUINO] Unrecognized serial data at {BAUD_RATE} baud: {raw.strip()!r}")
         except serial.SerialException:
             print("Serial port lost (unplugged?). Reconnecting in 3s...")
             time.sleep(3)
