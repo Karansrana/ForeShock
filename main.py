@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, Field
+from typing import List, Optional
 from pathlib import Path
 from fastapi.responses import FileResponse
 
@@ -113,8 +113,14 @@ def fallback_coords():
     )
 
 
+class DemoCoordinates(BaseModel):
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+
+
 class TextAlertRequest(BaseModel):
     text: str
+    demo_coords: Optional[DemoCoordinates] = None
 
 
 @app.post("/api/text-alert", response_model=Alert)
@@ -168,8 +174,11 @@ def receive_text_alert(req: TextAlertRequest):
     except (TypeError, ValueError):
         urgency = 5
 
-    # 3. Turn the extracted address into map coordinates (fall back near campus)
-    coords = geocode(parsed.get("location", "")) or fallback_coords()
+    # 3. Use the map-selected demo position when supplied; otherwise geocode the address.
+    if req.demo_coords:
+        coords = (req.demo_coords.lat, req.demo_coords.lon)
+    else:
+        coords = geocode(parsed.get("location", "")) or fallback_coords()
 
     # 4. Same pipeline as the Arduino: append to the shared alert store
     alert = Alert(

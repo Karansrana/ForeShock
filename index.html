@@ -148,22 +148,6 @@
             }).bindPopup(`<b>${alert.type} Alert</b> <span style="opacity:.6">${source}</span><br>Urgency: ${alert.urgency}/10 — ${label}${summary}`);
         }
 
-        function getMarkerPosition(alert) {
-            const position = L.latLng(alert.lat, alert.lon);
-            if (alert.source !== 'TEXT') return position;
-
-            const size = map.getSize();
-            const point = map.latLngToContainerPoint(position);
-            const padding = 24;
-            const minX = Math.min(padding, size.x / 2);
-            const minY = Math.min(padding, size.y / 2);
-            const visiblePoint = L.point(
-                Math.max(minX, Math.min(size.x - minX, point.x)),
-                Math.max(minY, Math.min(size.y - minY, point.y))
-            );
-            return map.containerPointToLatLng(visiblePoint);
-        }
-
         // 5. The Polling Loop: Fetch alerts from Backend every 2 seconds
         async function fetchAlerts() {
             try {
@@ -181,8 +165,7 @@
                 // Add new markers based on data
                 data.forEach(alert => {
                     const color = getMarkerColor(alert.urgency);
-                    const position = getMarkerPosition(alert);
-                    const marker = createCustomMarker(position.lat, position.lng, color, alert);
+                    const marker = createCustomMarker(alert.lat, alert.lon, color, alert);
                     marker.addTo(map);
                     markers.push(marker);
                 });
@@ -203,19 +186,33 @@
         ];
         let exampleIndex = 0;
 
+        function getRandomVisibleMapCoords() {
+            const size = map.getSize();
+            const padding = 24;
+            const minX = Math.min(padding, size.x / 2);
+            const minY = Math.min(padding, size.y / 2);
+            const point = L.point(
+                minX + Math.random() * (size.x - 2 * minX),
+                minY + Math.random() * (size.y - 2 * minY)
+            );
+            const coords = map.containerPointToLatLng(point);
+            return { lat: coords.lat, lon: coords.lng };
+        }
+
         async function submitTextAlert() {
             const input = document.getElementById('sms-input');
             const status = document.getElementById('sms-status');
             const text = input.value.trim();
             if (!text) { status.textContent = 'Type a message first.'; status.className = 'text-xs mt-2 text-zinc-400'; return; }
 
+            const demoCoords = getRandomVisibleMapCoords();
             status.textContent = 'AI triaging…';
             status.className = 'text-xs mt-2 text-yellow-400';
             try {
                 const res = await fetch('http://localhost:8000/api/text-alert', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text })
+                    body: JSON.stringify({ text, demo_coords: demoCoords })
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
