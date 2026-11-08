@@ -419,7 +419,14 @@
         let currentAlerts = [];
 
         // Keep marker shapes and colors aligned with the severity legend.
-        function getMarkerSeverity(urgency) {
+        function getMarkerSeverity(urgency, alertType) {
+            if (String(alertType).toUpperCase() === 'TRAPPED') {
+                return {
+                    label: 'URGENT',
+                    className: 'alert-pin-urgent',
+                    icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>'
+                };
+            }
             if (urgency >= 8) {
                 return {
                     label: 'CRITICAL',
@@ -460,7 +467,7 @@
 
         // 4. Marker hover shows a quick summary; click opens the full alert details.
         function createCustomMarker(lat, lon, alert) {
-            const severity = getMarkerSeverity(alert.urgency);
+            const severity = getMarkerSeverity(alert.urgency, alert.type);
             const source = alert.source === 'TEXT' ? '📱 SMS' : '🔘 Beacon';
             const type = escapeHtml(alert.type);
             const safeSource = escapeHtml(source);
