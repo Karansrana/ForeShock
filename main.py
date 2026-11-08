@@ -1,6 +1,7 @@
 import json
 import os
 import random
+from datetime import datetime, timezone
 
 import openai
 import requests
@@ -34,6 +35,7 @@ class Alert(BaseModel):
     urgency: int = 5  # Default urgency (1-10)
     source: str = "BEACON"   # "BEACON" (Arduino) or "TEXT" (AI-parsed SMS)
     summary: str = ""        # One-line gist of the emergency (AI-generated)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Temporary In-Memory Database for the MVP
 active_alerts = []
@@ -54,6 +56,7 @@ async def receive_alert(alert: Alert):
     """
     Endpoint for the bridge.py script to post data from the Arduino.
     """
+    alert.created_at = datetime.now(timezone.utc)
     alert_dict = alert.dict()
     active_alerts.append(alert_dict)
     print(f"🚨 Received {alert.type} alert at {alert.lat}, {alert.lon} (Urgency: {alert.urgency})")
@@ -188,6 +191,7 @@ def receive_text_alert(req: TextAlertRequest):
         urgency=urgency,
         source="TEXT",
         summary=str(parsed.get("summary", ""))[:200],
+        created_at=datetime.now(timezone.utc),
     )
     active_alerts.append(alert.dict())
     print(f"💬 Text alert: {alert.type} (urgency {alert.urgency}) at {alert.lat:.4f}, {alert.lon:.4f} — {alert.summary}")
