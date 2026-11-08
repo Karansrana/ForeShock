@@ -150,7 +150,7 @@
         const coverageContext = coverageCanvas.getContext('2d');
         const COVERAGE_RADIUS_METERS = 350;
         const COVERAGE_MAX_RADIUS = 130;
-        const COVERAGE_SCALE = 0.5;
+        const COVERAGE_SCALE = 1;
         coverageCanvas.style.pointerEvents = 'none';
         map.getPanes().overlayPane.appendChild(coverageCanvas);
 
@@ -234,12 +234,12 @@
                         lowSeverity[channel] + (highSeverity[channel] - lowSeverity[channel]) * severity
                     );
                 }
-                image.data[colorOffset + 3] = Math.round(255 * 0.55 * (1 - Math.exp(-totalInfluence * 0.9)));
+                image.data[colorOffset + 3] = Math.round(255 * 0.76 * (1 - Math.exp(-totalInfluence * 1.1)));
             }
             coverageContext.putImageData(image, left, top);
             coverageContext.save();
             coverageContext.strokeStyle = 'rgba(255, 235, 235, 0.72)';
-            coverageContext.lineWidth = 0.8;
+            coverageContext.lineWidth = 1.25;
             coverageContext.shadowColor = 'rgba(255, 245, 245, 0.35)';
             coverageContext.shadowBlur = 2 * COVERAGE_SCALE;
             zones.forEach(zone => {
