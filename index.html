@@ -104,6 +104,39 @@
         .legend-urgent { color: #ff9a54; }
         .legend-stable { color: #3b82f6; }
         .legend-safe { color: #00bd79; }
+        .alert-div-icon { border: 0; background: transparent; }
+        .alert-pin-shell {
+            --pin-color: #f0440a;
+            position: relative;
+            display: flex;
+            width: 36px;
+            height: 36px;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--pin-color);
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 3px 10px rgba(24, 24, 27, .3);
+        }
+        .alert-pin-shell::before {
+            position: absolute;
+            inset: -5px;
+            border: 2px solid var(--pin-color);
+            border-radius: 50%;
+            content: "";
+            animation: alert-pin-wave 2.4s ease-out infinite;
+        }
+        .alert-pin-icon { width: 18px; height: 18px; color: var(--pin-color); }
+        .alert-pin-urgent { --pin-color: #ff9a54; }
+        .alert-pin-stable { --pin-color: #3b82f6; }
+        .alert-pin-safe { --pin-color: #00bd79; }
+        @keyframes alert-pin-wave {
+            0% { opacity: .35; transform: scale(.8); }
+            75%, 100% { opacity: 0; transform: scale(1.35); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .alert-pin-shell::before { animation: none; }
+        }
         .impact-scale { width: clamp(150px, 21vw, 218px); flex-shrink: 0; }
         .impact-title { margin-bottom: 10px; color: #c4c9d2; font-size: 10px; font-weight: 900; letter-spacing: 1px; text-align: center; }
         .impact-gradient { height: 10px; border-radius: 999px; background: linear-gradient(90deg, #f3e7df, #ff9b53, #f0440a, #df1e24); }
@@ -388,12 +421,34 @@
         map.on('moveend zoomend resize', () => renderCoverage(currentAlerts));
         let currentAlerts = [];
 
-        // 3. Function to determine marker color based on urgency
-        function getMarkerColor(urgency) {
-            if (urgency >= 8) return 'red';
-            if (urgency >= 5) return 'orange';
-            if (urgency >= 2) return 'blue';
-            return 'green';
+        // Keep marker shapes and colors aligned with the severity legend.
+        function getMarkerSeverity(urgency) {
+            if (urgency >= 8) {
+                return {
+                    label: 'CRITICAL',
+                    className: 'alert-pin-critical',
+                    icon: '<path d="M10.3 3.9 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4m0 4h.01"/>'
+                };
+            }
+            if (urgency >= 5) {
+                return {
+                    label: 'URGENT',
+                    className: 'alert-pin-urgent',
+                    icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>'
+                };
+            }
+            if (urgency >= 2) {
+                return {
+                    label: 'STABLE',
+                    className: 'alert-pin-stable',
+                    icon: '<path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/>'
+                };
+            }
+            return {
+                label: 'SAFE',
+                className: 'alert-pin-safe',
+                icon: '<path d="M20 11.1V12a8 8 0 1 1-4.7-7.3"/><path d="m8.5 11.5 3 3L22 4"/>'
+            };
         }
 
         function escapeHtml(value) {
@@ -407,13 +462,13 @@
         }
 
         // 4. Marker hover shows a quick summary; click opens the full alert details.
-        function createCustomMarker(lat, lon, color, alert) {
-            const label = alert.urgency >= 8 ? 'CRITICAL' : alert.urgency >= 5 ? 'URGENT' : alert.urgency >= 2 ? 'STABLE' : 'SAFE';
+        function createCustomMarker(lat, lon, alert) {
+            const severity = getMarkerSeverity(alert.urgency);
             const source = alert.source === 'TEXT' ? '📱 SMS' : '🔘 Beacon';
             const type = escapeHtml(alert.type);
             const safeSource = escapeHtml(source);
             const urgency = escapeHtml(alert.urgency);
-            const safeLabel = escapeHtml(label);
+            const safeLabel = escapeHtml(severity.label);
             const summary = escapeHtml(alert.summary || 'No summary provided.');
             const quickView = `<b>${type} Alert</b> <span style="opacity:.7">${safeSource}</span><br>Urgency: ${urgency}/10 — ${safeLabel}<br><span style="opacity:.8">${summary}</span>`;
             const details = `
@@ -424,15 +479,15 @@
                     <div style="margin-top:8px"><b>Summary</b><br>${summary}</div>
                     <div style="margin-top:8px;font-size:12px;opacity:.7"><b>Coordinates:</b> ${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}</div>
                 </div>`;
-            const marker = L.circleMarker([lat, lon], {
-                radius: 8,
-                fillColor: color,
-                color: '#fff',
-                weight: 1,
-                opacity: 1,
-                fillOpacity: 0.8,
-                className: 'alert-marker-pulse'
-            })
+            const icon = L.divIcon({
+                className: 'alert-div-icon',
+                html: `<span class="alert-pin-shell ${severity.className}" role="img" aria-label="${safeLabel} alert"><svg class="alert-pin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${severity.icon}</svg></span>`,
+                iconSize: [36, 36],
+                iconAnchor: [18, 18],
+                tooltipAnchor: [0, -20],
+                popupAnchor: [0, -18]
+            });
+            const marker = L.marker([lat, lon], { icon, keyboard: true })
                 .bindTooltip(quickView, {
                     className: 'alert-hover-tooltip',
                     direction: 'top',
@@ -462,8 +517,7 @@
 
                 // Add new markers based on data
                 data.forEach(alert => {
-                    const color = getMarkerColor(alert.urgency);
-                    const marker = createCustomMarker(alert.lat, alert.lon, color, alert);
+                    const marker = createCustomMarker(alert.lat, alert.lon, alert);
                     marker.addTo(map);
                     markers.push(marker);
                 });
