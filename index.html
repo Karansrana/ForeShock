@@ -16,6 +16,14 @@
         .leaflet-container { background: #1a1a1a; }
         /* Dark-mode trick: invert OSM tiles so we get a dark theme with no API key */
         .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
+        .alert-hover-tooltip {
+            background: rgba(24, 24, 27, 0.96);
+            border: 1px solid #52525b;
+            border-radius: 8px;
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        }
+        .alert-hover-tooltip::before { border-top-color: #52525b; }
     </style>
 </head>
 <body class="bg-zinc-900 text-white overflow-hidden">
@@ -133,19 +141,51 @@
             return 'green';
         }
 
-        // 4. Function to create a colored circle marker (popup shows AI summary + source)
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[character]);
+        }
+
+        // 4. Marker hover shows a quick summary; click opens the full alert details.
         function createCustomMarker(lat, lon, color, alert) {
             const label = alert.urgency >= 8 ? 'CRITICAL' : alert.urgency >= 5 ? 'URGENT' : alert.urgency >= 2 ? 'STABLE' : 'SAFE';
             const source = alert.source === 'TEXT' ? '📱 SMS' : '🔘 Beacon';
-            const summary = alert.summary ? `<br><span style="opacity:.75">${alert.summary}</span>` : '';
-            return L.circleMarker([lat, lon], {
+            const type = escapeHtml(alert.type);
+            const safeSource = escapeHtml(source);
+            const urgency = escapeHtml(alert.urgency);
+            const safeLabel = escapeHtml(label);
+            const summary = escapeHtml(alert.summary || 'No summary provided.');
+            const quickView = `<b>${type} Alert</b> <span style="opacity:.7">${safeSource}</span><br>Urgency: ${urgency}/10 — ${safeLabel}<br><span style="opacity:.8">${summary}</span>`;
+            const details = `
+                <div style="min-width:190px">
+                    <div style="font-size:15px;font-weight:700;margin-bottom:8px">${type} Alert</div>
+                    <div><b>Priority:</b> ${safeLabel} (${urgency}/10)</div>
+                    <div><b>Reported via:</b> ${safeSource}</div>
+                    <div style="margin-top:8px"><b>Summary</b><br>${summary}</div>
+                    <div style="margin-top:8px;font-size:12px;opacity:.7"><b>Coordinates:</b> ${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}</div>
+                </div>`;
+            const marker = L.circleMarker([lat, lon], {
                 radius: 8,
                 fillColor: color,
                 color: '#fff',
                 weight: 1,
                 opacity: 1,
                 fillOpacity: 0.8
-            }).bindPopup(`<b>${alert.type} Alert</b> <span style="opacity:.6">${source}</span><br>Urgency: ${alert.urgency}/10 — ${label}${summary}`);
+            })
+                .bindTooltip(quickView, {
+                    className: 'alert-hover-tooltip',
+                    direction: 'top',
+                    offset: L.point(0, -8),
+                    opacity: 0.98
+                })
+                .bindPopup(details);
+            marker.on('click', () => marker.closeTooltip());
+            return marker;
         }
 
         // 5. The Polling Loop: Fetch alerts from Backend every 2 seconds
