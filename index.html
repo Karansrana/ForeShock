@@ -148,6 +148,22 @@
             }).bindPopup(`<b>${alert.type} Alert</b> <span style="opacity:.6">${source}</span><br>Urgency: ${alert.urgency}/10 — ${label}${summary}`);
         }
 
+        function getMarkerPosition(alert) {
+            const position = L.latLng(alert.lat, alert.lon);
+            if (alert.source !== 'TEXT') return position;
+
+            const size = map.getSize();
+            const point = map.latLngToContainerPoint(position);
+            const padding = 24;
+            const minX = Math.min(padding, size.x / 2);
+            const minY = Math.min(padding, size.y / 2);
+            const visiblePoint = L.point(
+                Math.max(minX, Math.min(size.x - minX, point.x)),
+                Math.max(minY, Math.min(size.y - minY, point.y))
+            );
+            return map.containerPointToLatLng(visiblePoint);
+        }
+
         // 5. The Polling Loop: Fetch alerts from Backend every 2 seconds
         async function fetchAlerts() {
             try {
@@ -165,7 +181,8 @@
                 // Add new markers based on data
                 data.forEach(alert => {
                     const color = getMarkerColor(alert.urgency);
-                    const marker = createCustomMarker(alert.lat, alert.lon, color, alert);
+                    const position = getMarkerPosition(alert);
+                    const marker = createCustomMarker(position.lat, position.lng, color, alert);
                     marker.addTo(map);
                     markers.push(marker);
                 });
