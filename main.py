@@ -20,12 +20,13 @@ load_dotenv()
 
 app = FastAPI(title="ForeShock Backend")
 
-RATE_LIMITS: Dict[str, Tuple[int, int]] = {
-    "/api/alerts": (60, 60),
-    "/api/alert": (20, 60),
-    "/api/text-alert": (5, 60),
+RATE_LIMITS: Dict[Tuple[str, str], Tuple[int, int]] = {
+    ("GET", "/api/alerts"): (60, 60),
+    ("DELETE", "/api/alerts"): (3, 60),
+    ("POST", "/api/alert"): (20, 60),
+    ("POST", "/api/text-alert"): (5, 60),
 }
-request_times: Dict[Tuple[str, str], Deque[float]] = defaultdict(deque)
+request_times: Dict[Tuple[str, str, str], Deque[float]] = defaultdict(deque)
 requests_since_cleanup = 0
 MAX_ACTIVE_ALERTS = 500
 
@@ -33,13 +34,13 @@ MAX_ACTIVE_ALERTS = 500
 @app.middleware("http")
 async def protect_public_api(request: Request, call_next):
     global requests_since_cleanup
-    limit = RATE_LIMITS.get(request.url.path)
+    limit = RATE_LIMITS.get((request.method, request.url.path))
     if limit is None:
         return await call_next(request)
 
     max_requests, window_seconds = limit
     client_ip = request.client.host if request.client else "unknown"
-    key = (client_ip, request.url.path)
+    key = (client_ip, request.method, request.url.path)
     now = time.monotonic()
     timestamps = request_times[key]
     while timestamps and now - timestamps[0] >= window_seconds:
@@ -252,6 +253,15 @@ async def get_all_alerts():
     Endpoint for the Leaflet.js frontend to fetch all active pins.
     """
     return active_alerts
+
+
+@app.delete("/api/alerts")
+async def clear_all_alerts():
+    """Clear the shared in-memory alerts for the public demo."""
+    cleared_count = len(active_alerts)
+    active_alerts.clear()
+    return {"status": "success", "cleared": cleared_count}
+
 
 if __name__ == "__main__":
     import uvicorn

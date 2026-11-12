@@ -63,7 +63,8 @@ the hosted demo does not need a bridge.
 - Alerts are held in process memory, capped at the latest 500, and disappear
   when the service restarts or sleeps. This is acceptable only for a showcase.
 - Public API rate limits are per application instance: 60 alert-list requests,
-  20 beacon submissions, and 5 AI text submissions per IP per minute.
+  3 shared alert clears, 20 beacon submissions, and 5 AI text submissions per
+  IP per minute. Clearing alerts deletes them from the shared demo for everyone.
 - The hosted service uses one instance so its in-memory demo state and rate
   limits are shared within that instance. Free hosting may sleep when idle.
 - The app uses third-party services for map tiles, Groq AI triage, and
@@ -78,6 +79,7 @@ the hosted demo does not need a bridge.
 | `GET` | `/` | Frontend map |
 | `GET` | `/health` | Health check |
 | `GET` | `/api/alerts` | Current in-memory alerts |
+| `DELETE` | `/api/alerts` | Clear all shared demo alerts |
 | `POST` | `/api/alert` | Beacon alert |
 | `POST` | `/api/text-alert` | AI triage of `{ "text": "..." }` |
 
