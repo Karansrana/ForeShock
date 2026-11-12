@@ -321,7 +321,7 @@
         installTileLayer();
 
         const markers = [];
-        const API_URL = 'http://localhost:8000/api/alerts';
+        const API_URL = '/api/alerts';
         const coverageCanvas = document.createElement('canvas');
         const coverageContext = coverageCanvas.getContext('2d');
         const COVERAGE_RADIUS_METERS = 350;
@@ -520,6 +520,7 @@
         async function fetchAlerts() {
             try {
                 const response = await fetch(API_URL);
+                if (!response.ok) throw new Error(`Alert API returned HTTP ${response.status}`);
                 const data = await response.json();
                 currentAlerts = data;
                 renderCoverage(data);
@@ -578,7 +579,7 @@
             status.textContent = 'AI triaging…';
             status.className = 'text-xs mt-2 text-yellow-400';
             try {
-                const res = await fetch('http://localhost:8000/api/text-alert', {
+                const res = await fetch('/api/text-alert', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, demo_coords: demoCoords })

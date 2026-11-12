@@ -1,76 +1,89 @@
-# ForeShock — Intelligent Offline Disaster Triage
+# ForeShock — Hackathon Demo
 
-**ForeShock** bridges offline hardware and AI to solve the "overlooked victim" problem in large-scale disasters: a single physical button press (or a panicked SMS) becomes a structured, prioritized pin on a live triage map that first responders can actually use.
+ForeShock is a disaster-response prototype built during a hackathon. It turns
+Arduino button alerts or example SMS reports into urgency-coded markers on a
+live map. This repository is a demo project, not an official State Farm
+product, and is not intended for real emergency response or insurance claims.
 
-Built as a hackathon project. Pipeline:
+## What the demo includes
 
-```
-Physical Button (Arduino) ──USB serial──▶ bridge.py ──HTTP──▶ FastAPI (main.py) ──▶ Live Leaflet map
-Raw SMS text ─────────────────────────────▶ POST /api/text-alert ──▶ Groq LLM triage + Nominatim geocoding ──▶ same map
-```
+- **Live triage map** — Leaflet map centered on UT Dallas with alert markers,
+  urgency shading, a compact legend, and marker details.
+- **SMS simulator** — Groq classifies a sample emergency message and the map
+  displays its summary and timestamp.
+- **Arduino bridge** — `bridge.py` can read button events over USB serial or
+  simulate them locally. Hardware is optional and is not required for the
+  hosted demo.
 
-## Features
+## Deploy the public demo to Render
 
-- **Hardware beacon** — Arduino button press → serial → bridge → API → map pin (JSON or bare-keyword payloads both accepted, auto-detects the COM port)
-- **AI text triage** — send a messy SOS message; Groq (OpenAI-compatible, free tier) extracts type / urgency / location / summary, and the address is geocoded via OSM Nominatim
-- **Live map UI** — dark-themed Leaflet map, polls `/api/alerts` every 2s, urgency-colored markers, SMS simulator panel built in
-- **No-hardware demo mode** — `bridge.py --simulate` fakes button presses so the whole loop runs on any laptop
+The included `render.yaml` configures a single Python web service that serves
+both the frontend and API from the same origin.
 
-## Quickstart (no hardware needed)
+1. Push this repository to GitHub.
+2. In Render, choose **New → Blueprint**, select this repository, and apply the
+   `render.yaml` configuration.
+3. In the new service's environment settings, set `GROQ_API_KEY` to a key from
+   [Groq Console](https://console.groq.com/). Do not put the key in the
+   frontend, source control, or a public document.
+4. Wait for the deployment to finish, open the service URL, and check
+   `/health`. Try the **Simulate SOS** menu to verify AI triage.
 
-Requires Python 3.10+ and the Windows `py` launcher (or any `python`).
+Render deploys the FastAPI backend and `index.html` together. The frontend uses
+same-origin API paths, so no separate frontend host or CORS configuration is
+needed. The Arduino bridge is intentionally not part of this public demo.
 
-```bash
-# 1. Install dependencies
+## Run locally
+
+Requires Python 3.10+.
+
+```powershell
 py -m pip install -r requirements.txt
-
-# 2. (Optional) AI triage — copy .env.example to .env and add a free Groq key
-#    Get one at https://console.groq.com (no credit card needed)
-copy .env.example .env   # then edit .env and set GROQ_API_KEY
-
-# 3. Start the backend (serves the map at http://localhost:8000)
+Copy-Item .env.example .env
+# Add GROQ_API_KEY to .env to enable AI text triage.
 py main.py
+```
 
-# 4. In a second terminal, simulate Arduino button presses
+Open <http://localhost:8000>. To generate sample beacon alerts, start a second
+terminal and run:
+
+```powershell
 py bridge.py --simulate
 ```
 
-Open **http://localhost:8000** — pins appear every 5 seconds. Try the **SMS** panel in the header to send a text alert like `"trapped in the library basement, 3rd floor, send help"`.
+For optional local hardware use, close any serial monitor and run `py
+bridge.py`; the bridge auto-detects common Arduino USB serial devices. A direct
+API URL can be configured in `bridge.py` if sending to a remote service, but
+the hosted demo does not need a bridge.
 
-## Real hardware
+## Configuration and limits
 
-```bash
-py bridge.py              # auto-detects the Arduino port
-py bridge.py --port COM5  # or force a port
-```
-
-The Arduino sketch should print one alert per line at 9600 baud, either as JSON
-(`{"type": "MEDICAL", "lat": 32.98, "lon": -96.75}`) or a bare keyword (`MEDICAL`).
+- `GROQ_API_KEY` enables the SMS triage endpoint. Without it, the map and beacon
+  endpoint still work, but text triage returns a configuration error.
+- Alerts are held in process memory, capped at the latest 500, and disappear
+  when the service restarts or sleeps. This is acceptable only for a showcase.
+- Public API rate limits are per application instance: 60 alert-list requests,
+  20 beacon submissions, and 5 AI text submissions per IP per minute.
+- The hosted service uses one instance so its in-memory demo state and rate
+  limits are shared within that instance. Free hosting may sleep when idle.
+- The app uses third-party services for map tiles, Groq AI triage, and
+  OpenStreetMap Nominatim geocoding. Their availability and usage limits apply.
+- Do not submit real names, phone numbers, policy information, addresses, or
+  other sensitive personal data to this public demo.
 
 ## API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET  | `/` | Serves the map frontend (single origin, no CORS issues) |
-| GET  | `/health` | Status check |
-| POST | `/api/alert` | Receive a beacon alert (`type`, `lat`, `lon`, `urgency`) |
-| POST | `/api/text-alert` | AI triage of a raw text message (`text`, optional `demo_coords`) |
-| GET  | `/api/alerts` | All active alerts |
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/` | Frontend map |
+| `GET` | `/health` | Health check |
+| `GET` | `/api/alerts` | Current in-memory alerts |
+| `POST` | `/api/alert` | Beacon alert |
+| `POST` | `/api/text-alert` | AI triage of `{ "text": "..." }` |
 
-Alert types: `MEDICAL`, `TRAPPED`, `SUPPLIES`, `SAFE`. Urgency is 0–10.
-
-## Tech stack
-
-- **Backend:** Python 3.10+, FastAPI, Uvicorn, Pydantic
-- **Bridge:** Python (`pyserial`, `requests`)
-- **AI triage:** Groq API (OpenAI-compatible) + OSM Nominatim geocoding
-- **Frontend:** HTML, Tailwind CSS, Leaflet.js (dark tiles via CSS filter, 3-provider tile fallback)
-
-## Notes & limitations
-
-- Alerts are stored in memory — they reset when the server restarts (MVP trade-off; Supabase persistence was the planned Phase 3).
-- Never commit `.env` — API keys stay local (it's gitignored).
+Alert types are `MEDICAL`, `TRAPPED`, `SUPPLIES`, and `SAFE`; urgency ranges
+from 0 to 10.
 
 ## License
 
-MIT
+MIT. See [LICENSE](./LICENSE).

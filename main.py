@@ -1,46 +1,96 @@
 import json
 import os
 import random
+import time
+from collections import defaultdict, deque
 from datetime import datetime, timezone
+from typing import Deque, Dict, List, Literal, Optional, Tuple
 
 import openai
 import requests
 from dotenv import load_dotenv
 from openai import OpenAI
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
-from typing import List, Optional
 from pathlib import Path
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 # Loads GROQ_API_KEY from .env (that file is gitignored — never commit secrets)
 load_dotenv()
 
 app = FastAPI(title="ForeShock Backend")
 
-# CORS Middleware: Allows the frontend HTML file to talk to this API
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+RATE_LIMITS: Dict[str, Tuple[int, int]] = {
+    "/api/alerts": (60, 60),
+    "/api/alert": (20, 60),
+    "/api/text-alert": (5, 60),
+}
+request_times: Dict[Tuple[str, str], Deque[float]] = defaultdict(deque)
+requests_since_cleanup = 0
+MAX_ACTIVE_ALERTS = 500
+
+
+@app.middleware("http")
+async def protect_public_api(request: Request, call_next):
+    global requests_since_cleanup
+    limit = RATE_LIMITS.get(request.url.path)
+    if limit is None:
+        return await call_next(request)
+
+    max_requests, window_seconds = limit
+    client_ip = request.client.host if request.client else "unknown"
+    key = (client_ip, request.url.path)
+    now = time.monotonic()
+    timestamps = request_times[key]
+    while timestamps and now - timestamps[0] >= window_seconds:
+        timestamps.popleft()
+
+    if len(timestamps) >= max_requests:
+        retry_after = max(1, int(window_seconds - (now - timestamps[0])))
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Too many requests. Please try again shortly."},
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    timestamps.append(now)
+    requests_since_cleanup += 1
+    if requests_since_cleanup >= 256:
+        for stale_key, stale_times in list(request_times.items()):
+            while stale_times and now - stale_times[0] >= 60:
+                stale_times.popleft()
+            if not stale_times:
+                del request_times[stale_key]
+        requests_since_cleanup = 0
+
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 # Data Model for an Emergency Alert
 class Alert(BaseModel):
-    type: str    # e.g., "MEDICAL", "TRAPPED", "SUPPLIES", "SAFE"
-    lat: float   # Latitude
-    lon: float   # Longitude
-    urgency: int = 5  # Default urgency (1-10)
-    source: str = "BEACON"   # "BEACON" (Arduino) or "TEXT" (AI-parsed SMS)
-    summary: str = ""        # One-line gist of the emergency (AI-generated)
+    type: Literal["MEDICAL", "TRAPPED", "SUPPLIES", "SAFE"]
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    urgency: int = Field(default=5, ge=0, le=10)
+    source: Literal["BEACON", "TEXT"] = "BEACON"
+    summary: str = Field(default="", max_length=200)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Temporary In-Memory Database for the MVP
 active_alerts = []
 
 BASE_DIR = Path(__file__).resolve().parent
+
+
+def store_alert(alert: Alert) -> dict:
+    alert_dict = alert.dict()
+    active_alerts.append(alert_dict)
+    if len(active_alerts) > MAX_ACTIVE_ALERTS:
+        del active_alerts[:-MAX_ACTIVE_ALERTS]
+    return alert_dict
 
 @app.get("/", include_in_schema=False)
 async def serve_frontend():
@@ -57,8 +107,7 @@ async def receive_alert(alert: Alert):
     Endpoint for the bridge.py script to post data from the Arduino.
     """
     alert.created_at = datetime.now(timezone.utc)
-    alert_dict = alert.dict()
-    active_alerts.append(alert_dict)
+    store_alert(alert)
     print(f"🚨 Received {alert.type} alert at {alert.lat}, {alert.lon} (Urgency: {alert.urgency})")
     return {"status": "success", "message": "Alert logged successfully"}
 
@@ -122,7 +171,7 @@ class DemoCoordinates(BaseModel):
 
 
 class TextAlertRequest(BaseModel):
-    text: str
+    text: str = Field(min_length=1, max_length=2000)
     demo_coords: Optional[DemoCoordinates] = None
 
 
@@ -193,7 +242,7 @@ def receive_text_alert(req: TextAlertRequest):
         summary=str(parsed.get("summary", ""))[:200],
         created_at=datetime.now(timezone.utc),
     )
-    active_alerts.append(alert.dict())
+    store_alert(alert)
     print(f"💬 Text alert: {alert.type} (urgency {alert.urgency}) at {alert.lat:.4f}, {alert.lon:.4f} — {alert.summary}")
     return alert
 

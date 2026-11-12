@@ -9,7 +9,7 @@
 - **Backend:** Python 3.10+, FastAPI, Uvicorn, Pydantic.
 - **Bridge:** Python (`pyserial`, `requests`).
 - **Frontend:** HTML, Tailwind CSS, Leaflet.js.
-- **Future:** Supabase (Database), Gemini/OpenAI (AI Triage), Vercel (Deployment).
+- **Deployment:** Public hackathon demo runs as a single Render service using `render.yaml`; Supabase persistence remains future work.
 
 ## MVP Definition (Draft 1)
 - A physical button press on an Arduino sends a JSON payload.
@@ -22,13 +22,13 @@
 - `POST /api/alert`: Receives alert data (`type`, `lat`, `lon`, `urgency`).
 - `GET /api/alerts`: Returns the list of all active alerts.
 
-## Progress (updated Nov 7, 2026)
-- [x] Backend scaffold (FastAPI, CORS, in-memory store) — running on http://localhost:8000
-- [x] Frontend map (Leaflet, dark CSS filter, 3-provider tile fallback) — served at GET /
+## Progress (updated Nov 12, 2026)
+- [x] Backend scaffold (FastAPI, in-memory store, same-origin frontend/API) — running locally on http://localhost:8000
+- [x] Frontend map (Leaflet, responsive demo UI, severity markers, impact shading, 3-provider tile fallback)
 - [x] Hardware bridge (`bridge.py`) — serial auto-detect, JSON-or-keyword parsing, `--simulate` mode
-- [x] Phase 1 core loop verified end-to-end via simulation (SIM alert -> API -> map pin)
-- [ ] Real-hardware bench test — blocked on hardware teammate's Arduino
-- [x] Phase 2: AI text triage (`POST /api/text-alert` + Gemini + Nominatim geocoding) and SMS simulator UI
+- [x] Phase 1 core loop verified end-to-end via simulation and Arduino (button -> bridge -> API -> map pin)
+- [x] Phase 2: AI text triage (`POST /api/text-alert` + Groq + Nominatim geocoding) and SMS simulator UI
+- [ ] Public demo deployment — Render Blueprint is configured; set `GROQ_API_KEY` in Render and deploy.
 - [ ] Phase 3: Supabase persistence, red-zone clustering, stats sidebar
 
 ## Rules
